@@ -20,17 +20,6 @@ type OceanChartsProps = {
   profiles: ProfileRecord[];
 };
 
-function buildSeries(seed: number) {
-  return Array.from({ length: 14 }, (_, index) => {
-    const depth = index * 100;
-    return {
-      depth,
-      temperature: Number((23 - index * 1.15 + Math.sin(seed + index / 2)).toFixed(2)),
-      salinity: Number((34.7 + index * 0.08 + Math.cos(seed / 3 + index / 4) * 0.12).toFixed(2)),
-    };
-  });
-}
-
 export function OceanCharts({ profiles }: OceanChartsProps) {
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(
     profiles[0]?.id ?? null,
@@ -39,10 +28,25 @@ export function OceanCharts({ profiles }: OceanChartsProps) {
   const selectedProfile =
     profiles.find((profile) => profile.id === selectedProfileId) ?? profiles[0];
 
-  const chartData = useMemo(
-    () => buildSeries(selectedProfile?.cycle_number ?? 1),
-    [selectedProfile?.cycle_number],
-  );
+  const chartData = useMemo(() => {
+    if (!selectedProfile) {
+      return [];
+    }
+
+    return [...selectedProfile.measurements]
+      .filter(
+        (measurement) =>
+          measurement.pressure !== null &&
+          (measurement.temperature !== null || measurement.salinity !== null),
+      )
+      .sort((left, right) => (left.pressure ?? 0) - (right.pressure ?? 0))
+      .map((measurement) => ({
+        depth: measurement.pressure ?? 0,
+        pressure: measurement.pressure,
+        temperature: measurement.temperature,
+        salinity: measurement.salinity,
+      }));
+  }, [selectedProfile]);
 
   return (
     <div className="space-y-6">
@@ -64,7 +68,7 @@ export function OceanCharts({ profiles }: OceanChartsProps) {
               value={profile.id}
               className="bg-slate-950"
             >
-              Float {profile.float.platform_number} · Cycle {profile.cycle_number ?? "?"}
+              Float {profile.float.platform_number} | Cycle {profile.cycle_number ?? "?"}
             </option>
           ))}
         </select>
@@ -75,7 +79,7 @@ export function OceanCharts({ profiles }: OceanChartsProps) {
           <div className="mb-5">
             <p className="text-sm font-semibold text-white">Temperature vs depth</p>
             <p className="mt-1 text-sm text-white/55">
-              Derived profile preview for UI analytics.
+              Real measurement values from the current uploaded dataset.
             </p>
           </div>
           <div className="h-[360px]">
@@ -117,7 +121,7 @@ export function OceanCharts({ profiles }: OceanChartsProps) {
           <div className="mb-5">
             <p className="text-sm font-semibold text-white">Salinity vs depth</p>
             <p className="mt-1 text-sm text-white/55">
-              Interactive line chart tuned for ocean profile comparison.
+              Live salinity values pulled from stored profile measurements.
             </p>
           </div>
           <div className="h-[360px]">

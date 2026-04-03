@@ -67,6 +67,9 @@ class NetCDFIngestionService:
         finally:
             temp_path.unlink(missing_ok=True)
 
+        self._clear_existing_dataset(db)
+        vector_service.reset_store()
+
         float_record = self._get_or_create_float(
             db=db,
             platform_number=platform_number,
@@ -154,6 +157,8 @@ class NetCDFIngestionService:
         if profile_docs:
             vector_documents_created = vector_service.add_documents(profile_docs)
 
+        logger.info("Old data cleared, new dataset loaded")
+
         return NetCDFUploadResponse(
             filename=upload.filename or "unknown.nc",
             float_id=float_record.id,
@@ -161,6 +166,11 @@ class NetCDFIngestionService:
             measurements_created=measurements_created,
             vector_documents_created=vector_documents_created,
         )
+
+    def _clear_existing_dataset(self, db: Session) -> None:
+        db.query(OceanMeasurement).delete(synchronize_session=False)
+        db.query(Profile).delete(synchronize_session=False)
+        db.query(Float).delete(synchronize_session=False)
 
     def _get_or_create_float(
         self,

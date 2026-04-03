@@ -40,6 +40,10 @@ export function UploadExperience() {
         description: `${selectedFile.name} was processed successfully.`,
         tone: "success",
       });
+      window.dispatchEvent(new CustomEvent("floatchat:dataset-reloaded"));
+      window.setTimeout(() => {
+        window.location.reload();
+      }, 600);
     } catch (error) {
       const message = axios.isAxiosError(error)
         ? (error.response?.data?.detail as string | undefined) ?? error.message

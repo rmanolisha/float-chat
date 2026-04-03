@@ -16,7 +16,7 @@ def list_profiles(
 ) -> list[Profile]:
     stmt = (
         select(Profile)
-        .options(joinedload(Profile.float))
+        .options(joinedload(Profile.float), joinedload(Profile.measurements))
         .order_by(Profile.profile_time.desc().nullslast(), Profile.id.desc())
     )
     if float_id is not None:

@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from importlib import import_module
 from pathlib import Path
+import shutil
 from typing import TYPE_CHECKING, Any
 
 from app.core.config import get_settings
@@ -49,9 +50,8 @@ class VectorService:
         if not self.settings.openai_api_key:
             return None
 
-        faiss_cls, _, document_cls = self._load_vector_dependencies()
+        faiss_cls, _, _ = self._load_vector_dependencies()
         index_path = Path(self.settings.vector_index_path)
-        index_path.mkdir(parents=True, exist_ok=True)
 
         if (index_path / "index.faiss").exists() and (index_path / "index.pkl").exists():
             self._store = faiss_cls.load_local(
@@ -61,19 +61,21 @@ class VectorService:
             )
             return self._store
 
-        self._store = faiss_cls.from_documents(
-            documents=[
-                document_cls(
-                    page_content="FloatChatAI placeholder document for initializing the vector index.",
-                    metadata={"seed": True},
-                )
-            ],
-            embedding=self._embeddings(),
-        )
-        self._store.save_local(str(index_path))
-        return self._store
+        return None
+
+    def reset_store(self) -> None:
+        index_path = Path(self.settings.vector_index_path)
+        self._store = None
+
+        if index_path.exists():
+            shutil.rmtree(index_path, ignore_errors=True)
+
+        logger.info("Vector store cleared for fresh dataset load.")
 
     def add_documents(self, document_payloads: list[tuple[str, dict[str, str | int | float | None]]]) -> int:
+        if not document_payloads:
+            return 0
+
         try:
             store = self.ensure_store()
         except ValueError:
@@ -82,16 +84,23 @@ class VectorService:
             logger.exception("Vector store initialization failed during NetCDF ingestion.")
             return 0
 
-        if store is None:
-            return 0
-
-        _, _, document_cls = self._load_vector_dependencies()
+        faiss_cls, _, document_cls = self._load_vector_dependencies()
         documents = [
             document_cls(page_content=content, metadata=metadata)
             for content, metadata in document_payloads
         ]
         try:
-            store.add_documents(documents)
+            if store is None:
+                index_path = Path(self.settings.vector_index_path)
+                index_path.mkdir(parents=True, exist_ok=True)
+                store = faiss_cls.from_documents(
+                    documents=documents,
+                    embedding=self._embeddings(),
+                )
+                self._store = store
+            else:
+                store.add_documents(documents)
+
             store.save_local(str(self.settings.vector_index_path))
         except Exception:
             logger.exception("Vector document indexing failed during NetCDF ingestion.")
@@ -107,7 +116,7 @@ class VectorService:
 
         if store is None:
             raise ValueError(
-                "Vector search is unavailable until OPENAI_API_KEY is configured."
+                "No vectorized dataset is available. Upload a NetCDF file first."
             )
         return store.similarity_search_with_score(query, k=top_k)
 

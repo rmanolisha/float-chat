@@ -17,6 +17,18 @@ export type ProfileRecord = {
   source_file: string;
   created_at: string;
   float: FloatRecord;
+  measurements: OceanMeasurementRecord[];
+};
+
+export type OceanMeasurementRecord = {
+  id: number;
+  pressure: number | null;
+  temperature: number | null;
+  salinity: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  measured_at: string | null;
+  created_at: string;
 };
 
 export type DashboardStats = {
