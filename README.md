@@ -254,7 +254,7 @@ Open the application:
 http://localhost:3000
 ```
 
-*Note: These commands describe the planned setup and will work once the corresponding application files and configurations are implemented.*
+*Note: These commands describe the planned setup and will work once the corresponding application files and configuration are implemented.*
 
 ## 🌍 Dataset
 
